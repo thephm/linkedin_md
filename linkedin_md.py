@@ -199,7 +199,7 @@ def loadMessages(fileName, messages, reactions, config):
 # main
 
 theMessages = []
-theReactions = [] # required by `message_md` but not used for SMS messages
+theReactions = [] # required by `message_md` but not used for LinkedIn
 
 theConfig = config.Config()
 
