@@ -1,6 +1,6 @@
 # linkedin_md
 
-This tool takes the CSV output file from the LinkedIn export and generates a set of Markdown files on your filesystem. 
+This tool takes the CSV output file from the [LinkedIn export](docs/linkedin_export.md) and generates a set of Markdown files on your filesystem. 
 
 ## message_md dependency
 
