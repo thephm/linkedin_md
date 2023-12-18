@@ -77,26 +77,36 @@ def fieldIndex(fieldLabel, fieldMap):
 #
 #   - profile URLS start with LI_PROFILE_URL
 #
+# Returns
+#
+#   - True - if a sender and receiver found
+#   - False - if either is not found
+#
 # -----------------------------------------------------------------------------
 def parsePeople(row, message, fieldMap, config):
+
+    found = False
      
     index = fieldIndex(LI_SENDER_PROFILE_URL, fieldMap)
     fromProfile = row[index][len(LI_PROFILE_URL):]
 
     fromPerson = config.getPersonByLinkedInId(fromProfile)
 
-    if fromPerson:
+    if fromPerson and len(fromPerson.slug):
         message.sourceSlug = fromPerson.slug
 
-    # this will just get the first person if there are multiple,
-    # they are separated by ';'
-    index = fieldIndex(LI_RECIPIENT_PROFILE_URLS, fieldMap)
-    toProfile = row[index][len(LI_PROFILE_URL):].split(';')[0]
+        # this will just get the first person if there are multiple,
+        # they are separated by ';'
+        index = fieldIndex(LI_RECIPIENT_PROFILE_URLS, fieldMap)
+        toProfile = row[index][len(LI_PROFILE_URL):].split(';')[0]
 
-    toPerson = config.getPersonByLinkedInId(toProfile)
+        toPerson = config.getPersonByLinkedInId(toProfile)
 
-    if toPerson:
-        message.destinationSlug = toPerson.slug
+        if toPerson and len(toPerson.slug):
+            message.destinationSlug = toPerson.slug
+            found = True
+
+    return found
 
 # -----------------------------------------------------------------------------
 #
@@ -147,18 +157,33 @@ def parseTime(row, message, fieldMap):
 # Notes:
 #
 #   - profile URLS start with LI_PROFILE_URL
+#
+# Returns:
+#
+#   - True - if parsing was successful
+#   - False - if not
 # 
 # -----------------------------------------------------------------------------
 def parseRow(row, message, fieldMap, config):
    
-    parsePeople(row, message, fieldMap, config)
+    result = False
 
-    index = fieldIndex(LI_CONTENT, fieldMap)
-    message.body = row[index]
+    if parsePeople(row, message, fieldMap, config):
 
-    parseTime(row, message, fieldMap)
+        index = fieldIndex(LI_CONTENT, fieldMap)
+        body = row[index]
+        
+        ignore = ["Message request accepted",
+                  "A LinkedIn member left the conversation."]
+        
+        if body not in ignore:
+            message.body = body
 
-    return message
+            if len(body):
+                parseTime(row, message, fieldMap)
+                result = True
+
+    return result
 
 # -----------------------------------------------------------------------------
 #
@@ -190,8 +215,8 @@ def loadMessages(fileName, messages, reactions, config):
                 parseHeader(row, fieldMap)
             else:
                 theMessage = message.Message()
-                theMessage = parseRow(row, theMessage, fieldMap, config)
-                messages.append(theMessage)
+                if parseRow(row, theMessage, fieldMap, config):
+                    messages.append(theMessage)
             count += 1
     
     return count
