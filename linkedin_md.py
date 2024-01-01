@@ -17,6 +17,7 @@ import person
 #
 # @todo - see if there's a way to get attachments, low priority since most of
 # my messages in LinkedIn are only text with hyperlinks sometimes
+#
 #-----------------------------------------------------------------------------
  
 # field names
@@ -46,9 +47,9 @@ def parseHeader(row, fieldMap):
 
     count = 0
     for col in row:
-        for liField in LinkedInFields:
-            if col == liField:
-                fieldMap.append( [liField, count] )
+        for field in LinkedInFields:
+            if col == field:
+                fieldMap.append( [field, count] )
                 count += 1
 
 def fieldIndex(fieldLabel, fieldMap):
