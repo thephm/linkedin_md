@@ -94,7 +94,7 @@ def parsePeople(row, message, fieldMap, config):
     fromPerson = config.getPersonByLinkedInId(fromProfile)
 
     if fromPerson and len(fromPerson.slug):
-        message.sourceSlug = fromPerson.slug
+        message.fromSlug = fromPerson.slug
 
         # this will just get the first person if there are multiple,
         # they are separated by ';'
@@ -104,7 +104,7 @@ def parsePeople(row, message, fieldMap, config):
         toPerson = config.getPersonByLinkedInId(toProfile)
 
         if toPerson and len(toPerson.slug):
-            message.destinationSlug = toPerson.slug
+            message.toSlugs.append(toPerson.slug)
             found = True
 
     return found
