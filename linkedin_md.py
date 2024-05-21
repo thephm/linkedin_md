@@ -35,29 +35,29 @@ LI_FOLDER = "FOLDER"
 
 LI_PROFILE_URL = "https://www.linkedin.com/in/"
 
-LinkedInFields = [ 
+linkedin_fields = [ 
     LI_CONVERSATION_ID, LI_CONVERSATION_TITLE, LI_FROM, 
     LI_SENDER_PROFILE_URL, LI_TO, LI_RECIPIENT_PROFILE_URLS, 
     LI_DATE_TIME, LI_SUBJECT, LI_CONTENT, LI_FOLDER
 ]
 
-def parseHeader(row, fieldMap):
+def parse_header(row, field_map):
 
-    global LinkedInFields
+    global linkedin_fields
 
     count = 0
     for col in row:
-        for field in LinkedInFields:
+        for field in linkedin_fields:
             if col == field:
-                fieldMap.append( [field, count] )
+                field_map.append( [field, count] )
                 count += 1
 
-def fieldIndex(fieldLabel, fieldMap):
+def field_index(field_label, field_map):
 
     result = -1
 
-    for field in fieldMap:
-        if field[0] == fieldLabel:
+    for field in field_map:
+        if field[0] == field_label:
             result = field[1]
             break
 
@@ -71,7 +71,7 @@ def fieldIndex(fieldLabel, fieldMap):
 # 
 #   - row - comma spearated data for the specific message
 #   - message - the Message object where the data goes
-#   - fieldMap - the mapping of colums to their field names
+#   - field_map - the mapping of colums to their field names
 #   - config - the Config object
 #
 # Notes:
@@ -84,27 +84,27 @@ def fieldIndex(fieldLabel, fieldMap):
 #   - False - if either is not found
 #
 # -----------------------------------------------------------------------------
-def parsePeople(row, message, fieldMap, config):
+def parse_people(row, message, field_map, config):
 
     found = False
      
-    index = fieldIndex(LI_SENDER_PROFILE_URL, fieldMap)
-    fromProfile = row[index][len(LI_PROFILE_URL):]
+    index = field_index(LI_SENDER_PROFILE_URL, field_map)
+    from_profile = row[index][len(LI_PROFILE_URL):]
 
-    fromPerson = config.getPersonByLinkedInId(fromProfile)
+    from_person = config.getPersonByLinkedInId(from_profile)
 
-    if fromPerson and len(fromPerson.slug):
-        message.fromSlug = fromPerson.slug
+    if from_person and len(from_person.slug):
+        message.fromSlug = from_person.slug
 
         # this will just get the first person if there are multiple,
         # they are separated by ';'
-        index = fieldIndex(LI_RECIPIENT_PROFILE_URLS, fieldMap)
-        toProfile = row[index][len(LI_PROFILE_URL):].split(';')[0]
+        index = field_index(LI_RECIPIENT_PROFILE_URLS, field_map)
+        to_profile = row[index][len(LI_PROFILE_URL):].split(';')[0]
 
-        toPerson = config.getPersonByLinkedInId(toProfile)
+        to_person = config.getPersonByLinkedInId(to_profile)
 
-        if toPerson and len(toPerson.slug):
-            message.toSlugs.append(toPerson.slug)
+        if to_person and len(to_person.slug):
+            message.toSlugs.append(to_person.slug)
             found = True
 
     return found
@@ -117,31 +117,31 @@ def parsePeople(row, message, fieldMap, config):
 # 
 #   - row - comma spearated data for the specific message
 #   - message - the Message object where the data goes
-#   - fieldMap - the mapping of colums to their field names
+#   - field_map - the mapping of colums to their field names
 #
 # Notes:
 #
 #   - example date/time `2023-06-11 15:33:58 UTC`
 #
 # -----------------------------------------------------------------------------
-def parseTime(row, message, fieldMap):
+def parse_time(row, message, field_map):
     
-    index = fieldIndex(LI_DATE_TIME, fieldMap)
+    index = field_index(LI_DATE_TIME, field_map)
 
     # get the time from the message, comes in UTC time ISO format
-    dateTime = datetime.strptime(row[index][:19], '%Y-%m-%d %H:%M:%S')
+    date_time = datetime.strptime(row[index][:19], '%Y-%m-%d %H:%M:%S')
 
-    utcDateTime = datetime(dateTime.year, dateTime.month, dateTime.day, 
-                           dateTime.hour, dateTime.minute, dateTime.second, 0,
+    utc_date_time = datetime(date_time.year, date_time.month, date_time.day, 
+                           date_time.hour, date_time.minute, date_time.second, 0,
                            tzinfo=timezone.utc)
 
     # convert to local timezone
-    localTimezone = tzlocal.get_localzone()
-    localizedDateTime = utcDateTime.astimezone(localTimezone)
+    local_timezone = tzlocal.get_localzone()
+    localized_date_time = utc_date_time.astimezone(local_timezone)
  
-    message.dateStr = localizedDateTime.strftime("%Y-%m-%d")
-    message.timeStr = localizedDateTime.strftime("%H:%M:%S")
-    message.timeStamp = localizedDateTime.timestamp()
+    message.dateStr = localized_date_time.strftime("%Y-%m-%d")
+    message.timeStr = localized_date_time.strftime("%H:%M:%S")
+    message.timeStamp = localized_date_time.timestamp()
     message.setDateTime()
 
 # -----------------------------------------------------------------------------
@@ -152,7 +152,7 @@ def parseTime(row, message, fieldMap):
 # 
 #   - row - comma spearated data for the specific message
 #   - message - the Message object where the data goes
-#   - fieldMap - the mapping of colums to their field names
+#   - field_map - the mapping of colums to their field names
 #   - config - the Config object
 #
 # Notes:
@@ -165,13 +165,13 @@ def parseTime(row, message, fieldMap):
 #   - False - if not
 # 
 # -----------------------------------------------------------------------------
-def parseRow(row, message, fieldMap, config):
+def parse_row(row, message, field_map, config):
    
     result = False
 
-    if parsePeople(row, message, fieldMap, config):
+    if parse_people(row, message, field_map, config):
 
-        index = fieldIndex(LI_CONTENT, fieldMap)
+        index = field_index(LI_CONTENT, field_map)
         body = row[index]
         
         ignore = ["Message request accepted",
@@ -181,7 +181,7 @@ def parseRow(row, message, fieldMap, config):
             message.body = body
 
             if len(body):
-                parseTime(row, message, fieldMap)
+                parse_time(row, message, field_map)
                 result = True
 
     return result
@@ -192,7 +192,7 @@ def parseRow(row, message, fieldMap, config):
 #
 # Parameters:
 # 
-#   - fileName - the CSV file
+#   - filename - the CSV file
 #   - message - where the Message objects will go
 #   - reactions - not used
 #   - config - specific settings 
@@ -203,34 +203,34 @@ def parseRow(row, message, fieldMap, config):
 # Returns: the number of messages
 #
 # -----------------------------------------------------------------------------
-def loadMessages(fileName, messages, reactions, config):
+def load_messages(filename, messages, reactions, config):
 
-    fieldMap = []
+    field_map = []
 
-    with open(fileName, 'r') as csv_file:
+    with open(filename, 'r') as csv_file:
         reader = csv.reader(csv_file)
 
         count = 0
         for row in reader:
             if count == 0:
-                parseHeader(row, fieldMap)
+                parse_header(row, field_map)
             else:
-                theMessage = message.Message()
-                if parseRow(row, theMessage, fieldMap, config):
-                    messages.append(theMessage)
+                the_message = message.Message()
+                if parse_row(row, the_message, field_map, config):
+                    messages.append(the_message)
             count += 1
     
     return count
 
 # main
 
-theMessages = []
-theReactions = [] # required by `message_md` but not used for LinkedIn
+the_messages = []
+the_reactions = [] # required by `message_md` but not used for LinkedIn
 
-theConfig = config.Config()
+the_config = config.Config()
 
-if message_md.setup(theConfig, markdown.YAML_SERVICE_LINKEDIN, True):
+if message_md.setup(the_config, markdown.YAML_SERVICE_LINKEDIN, True):
 
     # needs to be after setup so the command line parameters override the
     # values defined in the settings file
-    message_md.getMarkdown(theConfig, loadMessages, theMessages, theReactions)
+    message_md.get_markdown(the_config, load_messages, the_messages, the_reactions)
