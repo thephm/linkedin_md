@@ -35,19 +35,21 @@ LI_FOLDER = "FOLDER"
 
 LI_PROFILE_URL = "https://www.linkedin.com/in/"
 
-linkedin_fields = [ 
+LinkedIn_Fields = [ 
     LI_CONVERSATION_ID, LI_CONVERSATION_TITLE, LI_FROM, 
     LI_SENDER_PROFILE_URL, LI_TO, LI_RECIPIENT_PROFILE_URLS, 
     LI_DATE_TIME, LI_SUBJECT, LI_CONTENT, LI_FOLDER
 ]
 
+Profiles_Not_Found = [] # holder for profiles we couldn't find
+
 def parse_header(row, field_map):
 
-    global linkedin_fields
+    global LinkedIn_Fields
 
     count = 0
     for col in row:
-        for field in linkedin_fields:
+        for field in LinkedIn_Fields:
             if col == field:
                 field_map.append( [field, count] )
                 count += 1
@@ -91,21 +93,25 @@ def parse_people(row, message, field_map, config):
     index = field_index(LI_SENDER_PROFILE_URL, field_map)
     from_profile = row[index][len(LI_PROFILE_URL):]
 
-    from_person = config.getPersonByLinkedInId(from_profile)
+    from_person = config.get_person_by_linkedin_id(from_profile)
 
     if from_person and len(from_person.slug):
-        message.fromSlug = from_person.slug
+        message.from_slug = from_person.slug
 
         # this will just get the first person if there are multiple,
         # they are separated by ';'
         index = field_index(LI_RECIPIENT_PROFILE_URLS, field_map)
         to_profile = row[index][len(LI_PROFILE_URL):].split(';')[0]
 
-        to_person = config.getPersonByLinkedInId(to_profile)
+        to_person = config.get_person_by_linkedin_id(to_profile)
 
         if to_person and len(to_person.slug):
-            message.toSlugs.append(to_person.slug)
+            message.to_slugs.append(to_person.slug)
             found = True
+    else: 
+        if from_profile not in Profiles_Not_Found:
+            Profiles_Not_Found.append(from_profile)
+            print(from_profile + " not found")
 
     return found
 
@@ -139,10 +145,10 @@ def parse_time(row, message, field_map):
     local_timezone = tzlocal.get_localzone()
     localized_date_time = utc_date_time.astimezone(local_timezone)
  
-    message.dateStr = localized_date_time.strftime("%Y-%m-%d")
-    message.timeStr = localized_date_time.strftime("%H:%M:%S")
-    message.timeStamp = localized_date_time.timestamp()
-    message.setDateTime()
+    message.date_str = localized_date_time.strftime("%Y-%m-%d")
+    message.time_str = localized_date_time.strftime("%H:%M:%S")
+    message.timestamp = localized_date_time.timestamp()
+    message.set_date_time()
 
 # -----------------------------------------------------------------------------
 #
