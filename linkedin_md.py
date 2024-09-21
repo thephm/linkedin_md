@@ -235,7 +235,8 @@ the_reactions = [] # required by `message_md` but not used for LinkedIn
 
 the_config = config.Config()
 
-if message_md.setup(the_config, markdown.YAML_SERVICE_LINKEDIN, True):
+# if message_md.setup(the_config, markdown.YAML_SERVICE_LINKEDIN, True):
+if message_md.setup(the_config, markdown.YAML_SERVICE_LINKEDIN):
 
     # needs to be after setup so the command line parameters override the
     # values defined in the settings file
