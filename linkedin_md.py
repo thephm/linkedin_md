@@ -67,7 +67,8 @@ def field_index(field_label, field_map):
 
 # -----------------------------------------------------------------------------
 #
-# Parse the People from a comma-separated row into a Message
+# Parse the People from a comma-separated row of the LinkedIn messages export
+# into a Message.
 #
 # Parameters:
 # 
@@ -152,7 +153,7 @@ def parse_time(row, message, field_map):
 
 # -----------------------------------------------------------------------------
 #
-# Parse one comma-separated row into a Message object
+# Parse one comma-separated row of the LinkedIn export into a Message object.
 #
 # Parameters:
 # 
@@ -194,7 +195,7 @@ def parse_row(row, message, field_map, config):
 
 # -----------------------------------------------------------------------------
 #
-# Load the messages from the CSV file
+# Load the messages from the LinkedIn CSV export file.
 #
 # Parameters:
 # 
