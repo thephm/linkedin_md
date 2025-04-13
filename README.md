@@ -10,3 +10,6 @@ The code in this repo relies heavily on my [message_md](https://github.com/theph
 
 1. Doesn't handle attachments
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
