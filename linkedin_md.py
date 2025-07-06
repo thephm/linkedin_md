@@ -4,12 +4,14 @@ from datetime import datetime, timezone
 import tzlocal # pip install tzlocal
 
 import sys
+sys.path.insert(1, '../hal/')
+import person
 sys.path.insert(1, '../message_md/')
 import message_md
 import config
 import markdown
 import message
-import person
+
 
 #-----------------------------------------------------------------------------
 # 
@@ -236,7 +238,6 @@ the_reactions = [] # required by `message_md` but not used for LinkedIn
 
 the_config = config.Config()
 
-# if message_md.setup(the_config, markdown.YAML_SERVICE_LINKEDIN, True):
 if message_md.setup(the_config, markdown.YAML_SERVICE_LINKEDIN):
 
     # needs to be after setup so the command line parameters override the
