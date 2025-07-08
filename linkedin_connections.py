@@ -14,3 +14,6 @@ the_people = []
 
 if message_md.setup(the_config, markdown.YAML_SERVICE_SIGNAL, False):
     connections.parse_connections_file(the_people, the_config)
+
+    for person in the_people:
+        print(person.identity.name + ", " + person.slug + ", " + str(person.organizations))
