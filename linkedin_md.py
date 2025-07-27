@@ -12,7 +12,6 @@ import config
 import markdown
 import message
 
-
 #-----------------------------------------------------------------------------
 # 
 # Parser for LinkedIn `messages.csv` file
@@ -53,7 +52,7 @@ def parse_header(row, field_map):
     for col in row:
         for field in LinkedIn_Fields:
             if col == field:
-                field_map.append( [field, count] )
+                field_map.append([field, count])
                 count += 1
 
 def field_index(field_label, field_map):
@@ -67,29 +66,19 @@ def field_index(field_label, field_map):
 
     return result
 
-# -----------------------------------------------------------------------------
-#
-# Parse the People from a comma-separated row of the LinkedIn messages export
-# into a Message.
-#
-# Parameters:
-# 
-#   - row - comma spearated data for the specific message
-#   - message - the Message object where the data goes
-#   - field_map - the mapping of colums to their field names
-#   - config - the Config object
-#
-# Notes:
-#
-#   - profile URLS start with LI_PROFILE_URL
-#
-# Returns
-#
-#   - True - if a sender and receiver found
-#   - False - if either is not found
-#
-# -----------------------------------------------------------------------------
 def parse_people(row, message, field_map, config):
+    """
+    Parse the sender and recipient from a row into a Message.
+
+    Parameters:
+    row (str): Comma-separated data for the specific message.
+    message (Message): The Message object where the data goes.
+    field_map (list): The mapping of columns to their field names.
+    config (Config): The configuration object containing person data.
+
+    Returns:
+    bool: True if both sender and recipient are found, False otherwise.
+    """
 
     found = False
      
@@ -118,22 +107,18 @@ def parse_people(row, message, field_map, config):
 
     return found
 
-# -----------------------------------------------------------------------------
-#
-# Parse the date and time from a comma-separated row into a Message
-#
-# Parameters:
-# 
-#   - row - comma spearated data for the specific message
-#   - message - the Message object where the data goes
-#   - field_map - the mapping of colums to their field names
-#
-# Notes:
-#
-#   - example date/time `2023-06-11 15:33:58 UTC`
-#
-# -----------------------------------------------------------------------------
 def parse_time(row, message, field_map):
+    """
+    Parse the date and time from a comma-separated row into a Message.
+
+    Parameters:
+    row (str): Comma-separated data for the specific message.
+    message (Message): The Message object where the data goes.
+    field_map (list): The mapping of columns to their field names.
+    
+    Notes:
+    - Example date/time: `2023-06-11 15:33:58 UTC`
+    """
     
     index = field_index(LI_DATE_TIME, field_map)
 
@@ -153,28 +138,19 @@ def parse_time(row, message, field_map):
     message.timestamp = localized_date_time.timestamp()
     message.set_date_time()
 
-# -----------------------------------------------------------------------------
-#
-# Parse one comma-separated row of the LinkedIn export into a Message object.
-#
-# Parameters:
-# 
-#   - row - comma spearated data for the specific message
-#   - message - the Message object where the data goes
-#   - field_map - the mapping of colums to their field names
-#   - config - the Config object
-#
-# Notes:
-#
-#   - profile URLS start with LI_PROFILE_URL
-#
-# Returns:
-#
-#   - True - if parsing was successful
-#   - False - if not
-# 
-# -----------------------------------------------------------------------------
 def parse_row(row, message, field_map, config):
+    """
+    Parse a single row of LinkedIn messages into a Message object.
+
+    Parameters:
+    row (list): The row data from the CSV file.
+    message (Message): The Message object to populate.
+    field_map (list): The mapping of columns to their field names.
+    config (Config): The configuration object containing person data.
+
+    Returns:
+    bool: True if the row was successfully parsed, False otherwise.
+    """
    
     result = False
 
@@ -195,24 +171,19 @@ def parse_row(row, message, field_map, config):
 
     return result
 
-# -----------------------------------------------------------------------------
-#
-# Load the messages from the LinkedIn CSV export file.
-#
-# Parameters:
-# 
-#   - filename - the CSV file
-#   - message - where the Message objects will go
-#   - reactions - not used
-#   - config - specific settings 
-#
-# Notes
-#   - the first row is the header row, parse it in case the field order changes
-#
-# Returns: the number of messages
-#
-# -----------------------------------------------------------------------------
 def load_messages(filename, messages, reactions, config):
+    """
+    Load messages from a LinkedIn CSV file.
+
+    Parameters:
+    filename (str): The path to the CSV file.
+    messages (list): The list to populate with Message objects.
+    reactions (list): Not used for LinkedIn, but required by message_md.
+    config (Config): The configuration object containing person data.
+
+    Returns:
+    int: The number of messages loaded.
+    """
 
     field_map = []
 
