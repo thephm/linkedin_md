@@ -187,7 +187,7 @@ def load_messages(filename, messages, reactions, config):
 
     field_map = []
 
-    with open(filename, 'r') as csv_file:
+    with open(filename, 'r', encoding='utf-8') as csv_file:
         reader = csv.reader(csv_file)
 
         count = 0
