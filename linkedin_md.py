@@ -12,14 +12,12 @@ import config
 import markdown
 import message
 
-#-----------------------------------------------------------------------------
-# 
-# Parser for LinkedIn `messages.csv` file
-#
-# @todo - see if there's a way to get attachments, low priority since most of
-# my messages in LinkedIn are only text with hyperlinks sometimes
-#
-#-----------------------------------------------------------------------------
+"""
+Parser for LinkedIn `messages.csv` file.
+
+@todo - see if there's a way to get attachments, low priority since most of
+my messages in LinkedIn are only text with hyperlinks sometimes.
+"""
  
 # field names
 

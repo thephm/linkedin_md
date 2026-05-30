@@ -301,7 +301,10 @@ from linkedin_connections_md_helpers import find_person_by_name_or_id, parse_pos
 sys.path.insert(1, '../hal/')
 import person
 
-# --- CONFIGURATION ---
+
+"""
+Configuration section: defines default directories and files for the LinkedIn Markdown sync script.
+"""
 
 # Defaults (can be overridden by CLI)
 DEFAULT_PEOPLE_DIR = "people/"
@@ -309,7 +312,10 @@ DEFAULT_CSV_FILE = "Connections.csv"
 DEFAULT_OUTPUT_DIR = None  # If not set, use source folder
 DEFAULT_CONFIG_DIR = None
 
-# --- HELPERS ---
+
+"""
+Helper functions for slugifying names, extracting LinkedIn IDs, and loading/saving Markdown profiles.
+"""
 def slugify(name):
     return re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
 
@@ -340,7 +346,9 @@ def load_markdown_profile(slug, people_dir):
 
 def save_markdown_profile(md_path, frontmatter, body):
     print(f"[DEBUG] Writing updated profile to: {md_path}")
-    # Preserve all original fields, including empty ones, and only update/add as needed
+    """
+    Preserve all original fields, including empty ones, and only update/add as needed.
+    """
     clean_frontmatter = OrderedDict(frontmatter)
     with open(md_path, 'w', encoding='utf-8') as f:
         f.write('---\n')
@@ -367,7 +375,9 @@ def save_markdown_profile(md_path, frontmatter, body):
 
 
 
-# Helper to load markdown from a specific path
+    """
+    Helper to load markdown from a specific path.
+    """
 def load_markdown_profile_from_path(md_path):
     if not os.path.exists(md_path):
         return None, None
