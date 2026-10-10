@@ -1,4 +1,5 @@
 .venv/
+.venv-wsl/
 .vs
 _debug.*
 __pycache__/
