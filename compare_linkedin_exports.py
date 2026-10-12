@@ -4,15 +4,16 @@
 Reports: renamed / new / removed files, CSV column changes, JSON key changes,
 and (with --counts) row-count / size deltas. Handles UTF-8 and UTF-16 CSVs,
 comma / tab / semicolon / pipe delimiters, 'Notes:' preambles, and headerless
-CSVs. Example values (from the NEW zip) are shown for new columns/keys; use
---samples 0 for a structure-only report that is safe to share.
+CSVs. Example values are hidden by default; use --show-samples to include them.
 
 Usage:
     python compare_linkedin_exports.py old.zip new.zip
     python compare_linkedin_exports.py old.zip new.zip --samples 0 --counts --out report.md
+    python compare_linkedin_exports.py old.zip new.zip --show-samples
 """
 import argparse
 import csv
+from difflib import SequenceMatcher
 import io
 import json
 import re
@@ -26,6 +27,8 @@ csv.field_size_limit(min(sys.maxsize, 2**31 - 1))
 PLACEHOLDERS = {"n/a", "na", "none", "null", "nil", "-", "--"}
 DATA_RE = re.compile(r"^(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}/\d{1,2}/\d{2,4}|https?://|\d{1,3}(\.\d{1,3}){3}$)")
 COLLAPSE_AT = 5  # collapse folders with this many files or more in added/removed lists
+SUMMARY_DIRS = {"articles": "Articles", "media files": "Media Files"}
+DATE_TIME_COLUMN_RE = re.compile(r"\b(?:date|time|timestamp|at|on)\b", re.IGNORECASE)
 
 
 # ---------- CSV reading ----------
@@ -181,7 +184,14 @@ def sample_lines(sample, cols, indent="      "):
     if not sample or not cols:
         return []
     vals = sample(cols)
-    return [f"{indent}{c}: " + " | ".join(vals[c]) for c in cols if vals[c]]
+    return [
+        f"{indent}{c}: " + " | ".join(vals[c])
+        for c in cols
+        if vals[c]
+        and c.strip().lower() != "last name"
+        and not DATE_TIME_COLUMN_RE.search(c)
+        and not all(value.lower() in {"true", "false"} for value in vals[c])
+    ]
 
 
 # ---------- diffing ----------
@@ -195,6 +205,19 @@ def key(name):
 
 def base(name):
     return key(name.rsplit("/", 1)[-1])
+
+
+def is_cosmetic_rename(old, new):
+    if key(old) == key(new):
+        return True
+    old_parts, new_parts = old.split("/"), new.split("/")
+    return (
+        len(old_parts) > 1
+        and len(new_parts) > 1
+        and old_parts[0].lower() == "articles"
+        and new_parts[0].lower() == "articles"
+        and base(old) == base(new)
+    )
 
 
 def jaccard(a, b):
@@ -243,6 +266,42 @@ def list_diff(old, new):
     return added, removed, moved
 
 
+def match_column_renames(removed, added, min_similarity=0.8):
+    def normalized(column):
+        column = column.lower()
+        column = re.sub(r"^comment\s+", "", column)
+        column = re.sub(r"\bcontent url\b", "link", column)
+        column = re.sub(r"\bip address\b", "ip", column)
+        column = re.sub(r"\bstarted\b", "start", column)
+        column = re.sub(r"\b(?:end|finished)\b", "finish", column)
+        column = re.sub(r"\bfiled\b", "filing", column)
+        column = re.sub(r"\bissued\b", "issue", column)
+        column = re.sub(r"\b(?:date|on)\b", "", column)
+        return re.sub(r"[^a-z0-9]", "", column)
+
+    scores = {
+        (old, new): SequenceMatcher(None, normalized(old), normalized(new)).ratio()
+        for old in removed
+        for new in added
+    }
+    pairs = []
+    for old in removed:
+        old_scores = [(scores[old, new], new) for new in added]
+        if not old_scores:
+            continue
+        best_score = max(score for score, _ in old_scores)
+        best_new = [new for score, new in old_scores if score == best_score]
+        if best_score < min_similarity or len(best_new) != 1:
+            continue
+        new = best_new[0]
+        new_scores = [(scores[candidate, new], candidate) for candidate in removed]
+        reverse_best = max(score for score, _ in new_scores)
+        reverse_old = [candidate for score, candidate in new_scores if score == reverse_best]
+        if reverse_best == best_score and reverse_old == [old]:
+            pairs.append((old, new))
+    return pairs
+
+
 def schema_lines(o, n, sample=None):
     lines = []
     if o["headerless"] and not n["headerless"]:
@@ -252,33 +311,42 @@ def schema_lines(o, n, sample=None):
     if (o["header"] is not None and n["header"] is not None and o["header"] != n["header"]
             and not (o["headerless"] and n["headerless"])):
         a, r, moved = list_diff(o["header"], n["header"])
+        renames = match_column_renames(r, a)
+        for old_column, new_column in renames:
+            lines.append(f"  ~ {old_column} -> {new_column}")
+            r.remove(old_column)
+            a.remove(new_column)
         if a:
             samples = sample_lines(sample, a)
             note = "  [no non-empty values found]" if sample and not samples else ""
-            lines.append(f"  + new columns: {', '.join(a)}{note}")
+            lines.append(f"  + {', '.join(a)}{note}")
             lines.extend(samples)
         if r:
-            lines.append(f"  - removed columns: {', '.join(r)}")
-        if moved and not a and not r:
+            lines.append(f"  - {', '.join(r)}")
+        if moved and not a and not r and not renames:
             lines.append("  ~ columns reordered")
     if o["keys"] is not None and n["keys"] is not None and o["keys"] != n["keys"]:
         a, r, _ = list_diff(o["keys"], n["keys"])
         if a:
-            lines.append(f"  + new JSON keys: {', '.join(a)}")
+            lines.append(f"  + {', '.join(a)}")
             lines.extend(sample_lines(sample, a))
         if r:
-            lines.append(f"  - removed JSON keys: {', '.join(r)}")
+            lines.append(f"  - {', '.join(r)}")
     return lines
 
 
 def collapse(files):
-    """Yield (label, original_file_or_None); folders with many files become one line."""
+    """Summarize Articles and Media Files; collapse other large folders."""
     by_dir = defaultdict(list)
     for f in files:
-        by_dir[f.rsplit("/", 1)[0] if "/" in f else ""].append(f)
+        first_dir = f.split("/", 1)[0].lower() if "/" in f else ""
+        d = SUMMARY_DIRS.get(first_dir, f.rsplit("/", 1)[0] if "/" in f else "")
+        by_dir[d].append(f)
     out = []
     for d, fs in sorted(by_dir.items()):
-        if d and len(fs) >= COLLAPSE_AT:
+        if d in SUMMARY_DIRS.values():
+            out.append((f"{d}/  ({len(fs)} files)", None))
+        elif d and len(fs) >= COLLAPSE_AT:
             exts = Counter(f.rsplit(".", 1)[-1].lower() if "." in f.rsplit("/", 1)[-1] else "(none)" for f in fs)
             out.append((f"{d}/  ({len(fs)} files: " + ", ".join(f"{c} {e}" for e, c in exts.most_common()) + ")", None))
         else:
@@ -290,8 +358,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("old_zip")
     ap.add_argument("new_zip")
-    ap.add_argument("--samples", type=int, default=3, metavar="N",
-                    help="example values per new column/key (default 3; 0 = structure only)")
+    ap.add_argument("--samples", type=int, default=1, metavar="N",
+                    help="example values per new column/key when --show-samples is used (default 1)")
+    ap.add_argument("--show-samples", action="store_true",
+                    help="include example values for new columns and keys (hidden by default)")
     ap.add_argument("--counts", action="store_true", help="also list row-count/size changes")
     ap.add_argument("--out", help="also write the report to this file")
     args = ap.parse_args()
@@ -300,6 +370,8 @@ def main():
     nz = zipfile.ZipFile(args.new_zip)
 
     def sampler_for(name):
+        if not args.show_samples:
+            return None
         return (lambda cols: sample_values(nz, name, cols, args.samples)) if args.samples > 0 else None
 
     out = []
@@ -311,13 +383,33 @@ def main():
     p(f"# LinkedIn export comparison\n\nOld: {args.old_zip} ({len(old)} files)\nNew: {args.new_zip} ({len(new)} files)\n")
 
     p(f"## Renamed files ({len(pairs)})")
+    rename_summaries = []
     for r, a, why in sorted(pairs):
-        p(f"~ {r} -> {a}  [{why}]")
-        out.extend(schema_lines(old[r], new[a], sampler_for(a)))
-    p("")
+        cosmetic = is_cosmetic_rename(r, a)
+        lines = []
+        if not cosmetic:
+            lines.append(f"~ {r} -> {a}  [{why}]")
+        changes = schema_lines(old[r], new[a], sampler_for(a))
+        if cosmetic and changes:
+            lines.append(f"{a}:")
+            lines.append("")
+        lines.extend(changes)
+        if lines:
+            rename_summaries.append(lines)
+    if rename_summaries:
+        p("")
+        for i, lines in enumerate(rename_summaries):
+            if i:
+                p("")
+            out.extend(lines)
+        p("")
 
+    collapsed_added = collapse(added_files)
     p(f"## New files ({len(added_files)})")
-    for label, f in collapse(added_files):
+    p("")
+    for i, (label, f) in enumerate(collapsed_added):
+        if i:
+            p("")
         if f is None:
             p(f"+ {label}")
             continue
@@ -325,40 +417,57 @@ def main():
         if e["headerless"]:
             extra = f" - no header row ({e['ncols']} columns)"
         elif e["header"]:
-            extra = f" - columns: {', '.join(e['header'])}"
+            extra = f": {', '.join(e['header'])}"
         else:
             extra = ""
         p(f"+ {f}{extra}")
         if e["header"]:
             out.extend(sample_lines(sampler_for(f), e["header"]))
-    p("")
+    if collapsed_added:
+        p("")
 
+    collapsed_removed = collapse(removed_files)
     p(f"## Removed files ({len(removed_files)})")
-    for label, _ in collapse(removed_files):
-        p(f"- {label}")
     p("")
+    for label, _ in collapsed_removed:
+        p(f"- {label}")
+    if collapsed_removed:
+        p("")
 
     p("## Schema changes in files present in both")
-    changed = 0
-    for f in common:
-        lines = schema_lines(old[f], new[f], sampler_for(f))
-        if lines:
-            changed += 1
+    p("")
+    schema_changes = [
+        (f, schema_lines(old[f], new[f], sampler_for(f)))
+        for f in common
+    ]
+    schema_changes = [(f, lines) for f, lines in schema_changes if lines]
+    if schema_changes:
+        for i, (f, lines) in enumerate(schema_changes):
+            if i:
+                p("")
             p(f)
+            p("")
             out.extend(lines)
-    if not changed:
+    else:
         p("(none)")
     p("")
 
     if args.counts:
         p("## Row-count / size changes")
+        p("")
+        count_changes = []
         for f in common:
             o, n = old[f], new[f]
             if o["rows"] is not None and o["rows"] != n["rows"]:
-                p(f"{f}: rows {o['rows']} -> {n['rows']}")
+                count_changes.append(f"{f}: rows {o['rows']} -> {n['rows']}")
             elif o["rows"] is None and o["size"] != n["size"]:
-                p(f"{f}: bytes {o['size']} -> {n['size']}")
-        p("")
+                count_changes.append(f"{f}: bytes {o['size']} -> {n['size']}")
+        for i, line in enumerate(count_changes):
+            if i:
+                p("")
+            p(line)
+        if count_changes:
+            p("")
 
     report = "\n".join(out)
     print(report)
