@@ -64,6 +64,17 @@ def field_index(field_label, field_map):
 
     return result
 
+def get_person_by_linkedin_id(linkedin_id, config):
+    """Look up a person using the LinkedIn ID stored in their socials."""
+    if not linkedin_id:
+        return False
+
+    for the_person in config.people:
+        if the_person.socials.linkedin_id == linkedin_id:
+            return the_person
+
+    return False
+
 def parse_people(row, message, field_map, config):
     """
     Parse the sender and recipient from a row into a Message.
@@ -83,7 +94,7 @@ def parse_people(row, message, field_map, config):
     index = field_index(LI_SENDER_PROFILE_URL, field_map)
     from_profile = row[index][len(LI_PROFILE_URL):]
 
-    from_person = config.get_person_by_linkedin_id(from_profile)
+    from_person = get_person_by_linkedin_id(from_profile, config)
 
     if from_person and len(from_person.slug):
         message.from_slug = from_person.slug
@@ -93,7 +104,7 @@ def parse_people(row, message, field_map, config):
         index = field_index(LI_RECIPIENT_PROFILE_URLS, field_map)
         to_profile = row[index][len(LI_PROFILE_URL):].split(';')[0]
 
-        to_person = config.get_person_by_linkedin_id(to_profile)
+        to_person = get_person_by_linkedin_id(to_profile, config)
 
         if to_person and len(to_person.slug):
             message.to_slugs.append(to_person.slug)
